@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lottie Factory - 圖片序列轉Lottie動畫</title>
+    
+    <!-- 引入 Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 Lottie-Web Player CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie-web.min.js"></script>
+    
+    <!-- Google Fonts - Inter 字體 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* 自定義樣式 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        /* 美化滾動條 */
+        #preview-area::-webkit-scrollbar {
+            height: 8px;
+        }
+        #preview-area::-webkit-scrollbar-track {
+            background: #1e293b; /* slate-800 */
+            border-radius: 10px;
+        }
+        #preview-area::-webkit-scrollbar-thumb {
+            background: #475569; /* slate-600 */
+            border-radius: 10px;
+        }
+        #preview-area::-webkit-scrollbar-thumb:hover {
+            background: #64748b; /* slate-500 */
+        }
+        /* 處理 input[type=number] 的箭頭按鈕 */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+          -webkit-appearance: none; 
+          margin: 0; 
+        }
+        input[type=number] {
+          -moz-appearance: textfield;
+        }
+        /* 讓Lottie預覽容器維持寬高比 */
+        #lottie-preview-container {
+            aspect-ratio: 16 / 9;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-300 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-3xl mx-auto space-y-8">
+        <!-- 標題區 -->
+        <header class="text-center">
+            <h1 class="text-4xl md:text-5xl font-bold text-white">Lottie Factory</h1>
+            <h2 class="text-lg md:text-xl text-slate-400 mt-2">圖片序列轉Lottie動畫</h2>
+        </header>
+
+        <main class="space-y-6 bg-slate-800/50 p-6 md:p-8 rounded-2xl shadow-2xl ring-1 ring-white/10">
+            <!-- 1. 檔案上傳區 -->
+            <section>
+                <label class="block text-sm font-medium text-slate-200 mb-2">1. 上傳圖片</label>
+                <div id="upload-area" class="group relative border-2 border-dashed border-slate-600 hover:border-sky-500 rounded-lg p-8 text-center cursor-pointer transition-colors duration-300">
+                    <div class="flex flex-col items-center justify-center space-y-2">
+                        <svg class="w-12 h-12 text-slate-500 group-hover:text-sky-500 transition-colors" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                        </svg>
+                        <p class="text-slate-400">點擊此處或拖曳圖片到這裡</p>
+                        <p class="text-xs text-slate-500">（建議使用相同尺寸的圖片）</p>
+                    </div>
+                    <input type="file" id="image-input" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                </div>
+            </section>
+
+            <!-- 2. 圖片預覽區 -->
+            <section id="preview-section" class="hidden">
+                 <label class="block text-sm font-medium text-slate-200 mb-2">圖片預覽（可拖曳排序）</label>
+                 <div id="preview-area" class="flex items-center space-x-4 bg-slate-900/70 p-4 rounded-lg overflow-x-auto min-h-[120px]">
+                    <!-- 預覽圖片將動態插入此處 -->
+                 </div>
+            </section>
+
+            <!-- 3. 動畫設定區 -->
+            <section>
+                <label class="block text-sm font-medium text-slate-200 mb-2">2. 動畫設定</label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="duration-input" class="text-sm text-slate-400">圖片時長 (秒)</label>
+                        <input type="number" id="duration-input" value="2" min="0.1" step="0.1" class="w-full mt-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition">
+                    </div>
+                    <div>
+                        <label for="transition-input" class="text-sm text-slate-400">轉場時長 (秒)</label>
+                        <input type="number" id="transition-input" value="1" min="0" step="0.1" class="w-full mt-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition">
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. 操作區 -->
+            <section>
+                 <button id="generate-btn" class="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
+                    生成並預覽動畫
+                </button>
+            </section>
+            
+            <!-- 5. 動畫預覽與狀態區 -->
+            <section id="result-section" class="hidden space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-200 mb-2">3. 動畫預覽</label>
+                    <div id="lottie-preview-container" class="w-full bg-slate-900 rounded-lg flex items-center justify-center overflow-hidden border border-slate-700">
+                        <!-- Lottie 動畫將在此渲染 -->
+                    </div>
+                </div>
+                <div id="status-area" class="text-center bg-slate-700/50 p-3 rounded-lg">
+                    <p id="status-text" class="text-slate-300"></p>
+                    <a id="download-link" class="hidden text-sky-400 hover:text-sky-300 font-bold mt-2"></a>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- DOM 元素參照 ---
+        const uploadArea = document.getElementById('upload-area');
+        const imageInput = document.getElementById('image-input');
+        const previewSection = document.getElementById('preview-section');
+        const previewArea = document.getElementById('preview-area');
+        const durationInput = document.getElementById('duration-input');
+        const transitionInput = document.getElementById('transition-input');
+        const generateBtn = document.getElementById('generate-btn');
+        
+        const resultSection = document.getElementById('result-section');
+        const lottiePreviewContainer = document.getElementById('lottie-preview-container');
+        const statusArea = document.getElementById('status-area');
+        const statusText = document.getElementById('status-text');
+        const downloadLink = document.getElementById('download-link');
+
+        // --- 全域狀態 ---
+        let uploadedImages = [];
+        let imageCounter = 0; // 用於生成唯一ID
+        let currentAnimation = null; // 用於存放 Lottie 動畫實例
+
+        // --- 事件監聽器 ---
+
+        // 點擊上傳區域觸發檔案選擇
+        uploadArea.addEventListener('click', () => imageInput.click());
+
+        // 拖曳事件處理
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        uploadArea.addEventListener('dragenter', () => uploadArea.classList.add('border-sky-500', 'bg-slate-700/50'));
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('border-sky-500', 'bg-slate-700/50'));
+        uploadArea.addEventListener('drop', handleDrop);
+
+        // 處理檔案選擇
+        imageInput.addEventListener('change', handleFileSelect);
+        
+        // 點擊生成按鈕
+        generateBtn.addEventListener('click', generateLottie);
+
+        // --- 核心功能函數 ---
+
+        /**
+         * 處理拖曳檔案
+         * @param {DragEvent} e 
+         */
+        function handleDrop(e) {
+            uploadArea.classList.remove('border-sky-500', 'bg-slate-700/50');
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            processFiles(files);
+        }
+
+        /**
+         * 處理input選擇的檔案
+         * @param {Event} e 
+         */
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            processFiles(files);
+        }
+
+        /**
+         * 處理所有傳入的檔案
+         * @param {FileList} files 
+         */
+        function processFiles(files) {
+            const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+            if (imageFiles.length === 0) return;
+
+            let filesProcessed = 0;
+            // 在讀取前先隱藏結果區
+            resultSection.classList.add('hidden');
+            updateStatus(`正在讀取 ${imageFiles.length} 張圖片...`, true, false);
+
+
+            imageFiles.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        uploadedImages.push({
+                            id: `img_${imageCounter++}`,
+                            name: file.name,
+                            base64: e.target.result,
+                            width: img.width,
+                            height: img.height,
+                        });
+                        filesProcessed++;
+                        if (filesProcessed === imageFiles.length) {
+                           updatePreview();
+                           statusArea.classList.add('hidden'); // 讀取完畢後隱藏狀態
+                        }
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        /**
+         * 更新預覽區域的顯示
+         */
+        function updatePreview() {
+            if (uploadedImages.length > 0) {
+                previewSection.classList.remove('hidden');
+            } else {
+                previewSection.classList.add('hidden');
+                resultSection.classList.add('hidden'); // 沒有圖片時也隱藏結果區
+            }
+
+            previewArea.innerHTML = ''; // 清空預覽區
+            
+            uploadedImages.forEach((imgData) => {
+                const previewWrapper = document.createElement('div');
+                previewWrapper.className = 'relative flex-shrink-0 group';
+                previewWrapper.dataset.id = imgData.id;
+                previewWrapper.draggable = true;
+
+                const imgElement = document.createElement('img');
+                imgElement.src = imgData.base64;
+                imgElement.className = 'w-28 h-28 object-cover rounded-md shadow-md border-2 border-slate-700';
+
+                const removeBtn = document.createElement('button');
+                removeBtn.innerHTML = '&times;';
+                removeBtn.className = 'absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-lg opacity-0 group-hover:opacity-100 transition-opacity';
+                removeBtn.onclick = () => removeImage(imgData.id);
+
+                previewWrapper.appendChild(imgElement);
+                previewWrapper.appendChild(removeBtn);
+                previewArea.appendChild(previewWrapper);
+            });
+            
+            enableDragSort();
+        }
+        
+        /**
+         * 啟用預覽圖片的拖曳排序
+         */
+        function enableDragSort() {
+            let dragSrcEl = null;
+
+            function handleDragStart(e) {
+                this.style.opacity = '0.4';
+                dragSrcEl = this;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', this.innerHTML);
+            }
+
+            function handleDragOver(e) {
+                if (e.preventDefault) e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                return false;
+            }
+
+            function handleDragEnter(e) { this.classList.add('border-sky-500'); }
+            function handleDragLeave(e) { this.classList.remove('border-sky-500'); }
+            
+            function handleDrop(e) {
+                if (e.stopPropagation) e.stopPropagation();
+                if (dragSrcEl !== this) {
+                    const srcId = dragSrcEl.dataset.id;
+                    const targetId = this.dataset.id;
+                    
+                    const srcIndex = uploadedImages.findIndex(img => img.id === srcId);
+                    const targetIndex = uploadedImages.findIndex(img => img.id === targetId);
+                    
+                    const temp = uploadedImages[srcIndex];
+                    uploadedImages.splice(srcIndex, 1);
+                    uploadedImages.splice(targetIndex, 0, temp);
+                    
+                    updatePreview();
+                }
+                return false;
+            }
+
+            function handleDragEnd(e) {
+                this.style.opacity = '1';
+                document.querySelectorAll('#preview-area .relative').forEach(item => item.classList.remove('border-sky-500'));
+            }
+
+            document.querySelectorAll('#preview-area .relative').forEach(item => {
+                item.addEventListener('dragstart', handleDragStart, false);
+                item.addEventListener('dragenter', handleDragEnter, false);
+                item.addEventListener('dragover', handleDragOver, false);
+                item.addEventListener('dragleave', handleDragLeave, false);
+                item.addEventListener('drop', handleDrop, false);
+                item.addEventListener('dragend', handleDragEnd, false);
+            });
+        }
+
+
+        /**
+         * 根據ID移除圖片
+         * @param {string} id 
+         */
+        function removeImage(id) {
+            uploadedImages = uploadedImages.filter(img => img.id !== id);
+            updatePreview();
+        }
+
+        /**
+         * 更新狀態顯示
+         * @param {string} message - 要顯示的訊息
+         * @param {boolean} show - 是否顯示狀態區域
+         * @param {boolean} isError - 是否為錯誤訊息
+         */
+        function updateStatus(message, show = true, isError = false) {
+            resultSection.classList.remove('hidden');
+            statusArea.classList.remove('hidden');
+            statusText.textContent = message;
+            statusText.className = isError ? 'text-red-400' : 'text-slate-300';
+            downloadLink.classList.add('hidden'); // 預設隱藏下載連結
+        }
+
+        /**
+         * 生成 Lottie JSON 的主函數
+         */
+        function generateLottie() {
+            // --- 1. 驗證輸入 ---
+            if (uploadedImages.length < 1) { // 至少需要一張圖片來生成
+                updateStatus('錯誤：請至少上傳一張圖片。', true, true);
+                return;
+            }
+            const imageDuration = parseFloat(durationInput.value);
+            const transitionDuration = parseFloat(transitionInput.value);
+            if (isNaN(imageDuration) || isNaN(transitionDuration)) {
+                 updateStatus('錯誤：時長必須是有效的數字。', true, true);
+                return;
+            }
+            if (uploadedImages.length > 1 && transitionDuration > imageDuration) {
+                updateStatus('錯誤：轉場時長不能大於圖片時長。', true, true);
+                return;
+            }
+
+            // --- 2. 禁用按鈕並顯示處理中狀態 ---
+            generateBtn.disabled = true;
+            generateBtn.textContent = '正在生成中...';
+            updateStatus('正在處理圖片並生成JSON...', true, false);
+
+            // 使用 setTimeout 來確保UI更新後再執行耗時操作
+            setTimeout(() => {
+                try {
+                    // --- 3. 準備 Lottie 結構 ---
+                    const frameRate = 30;
+                    const firstImage = uploadedImages[0];
+                    const canvasWidth = firstImage.width;
+                    const canvasHeight = firstImage.height;
+
+                    const durationFrames = imageDuration * frameRate;
+                    const transitionFrames = transitionDuration * frameRate;
+                    
+                    // 如果只有一張圖，總時長就是該圖的時長
+                    const totalFrames = uploadedImages.length > 1 
+                        ? (uploadedImages.length * durationFrames) - ((uploadedImages.length - 1) * transitionFrames)
+                        : durationFrames;
+
+
+                    const lottieJson = {
+                        v: '5.12.2', fr: frameRate, ip: 0, op: totalFrames, w: canvasWidth, h: canvasHeight,
+                        nm: 'Lottie Factory Animation', ddd: 0, assets: [], layers: [],
+                    };
+
+                    // --- 4. 填充 assets 資源 ---
+                    uploadedImages.forEach((img, i) => {
+                        lottieJson.assets.push({
+                            id: `image_${i}`, w: img.width, h: img.height, u: '', p: img.base64, e: 1
+                        });
+                    });
+
+                    // --- 5. 填充 layers 圖層與關鍵影格 ---
+                    uploadedImages.forEach((img, i) => {
+                        const layerStartFrame = uploadedImages.length > 1 ? i * (durationFrames - transitionFrames) : 0;
+                        const opacityKeyframes = [];
+
+                        if (uploadedImages.length > 1) { // 多張圖才有轉場
+                            opacityKeyframes.push({ t: layerStartFrame, s: [0] });
+                            opacityKeyframes.push({ t: layerStartFrame + transitionFrames, s: [100] });
+                            if (i < uploadedImages.length - 1) {
+                                const fadeOutStartFrame = layerStartFrame + durationFrames - transitionFrames;
+                                opacityKeyframes.push({ t: fadeOutStartFrame, s: [100] });
+                                opacityKeyframes.push({ t: fadeOutStartFrame + transitionFrames, s: [0] });
+                            }
+                        } else { // 單張圖，保持不透明
+                             opacityKeyframes.push({ t: 0, s: [100] });
+                        }
+
+                        lottieJson.layers.push({
+                            ddd: 0, ind: i, ty: 2, nm: img.name, refId: `image_${i}`, sr: 1,
+                            ks: {
+                                o: { a: 1, k: opacityKeyframes },
+                                p: { a: 0, k: [canvasWidth / 2, canvasHeight / 2, 0] },
+                                a: { a: 0, k: [img.width / 2, img.height / 2, 0] },
+                                s: { a: 0, k: [100, 100, 100] }
+                            },
+                            ao: 0, ip: layerStartFrame, op: layerStartFrame + durationFrames, st: layerStartFrame, bm: 0
+                        });
+                    });
+
+                    // --- 6. 渲染預覽 ---
+                    resultSection.classList.remove('hidden');
+                    if (currentAnimation) {
+                        currentAnimation.destroy(); // 銷毀舊的動畫實例
+                    }
+                    currentAnimation = lottie.loadAnimation({
+                        container: lottiePreviewContainer,
+                        renderer: 'svg',
+                        loop: true,
+                        autoplay: true,
+                        animationData: lottieJson
+                    });
+
+                    // --- 7. 創建並觸發下載 ---
+                    downloadJson(lottieJson, 'animation.json');
+                    statusText.textContent = '生成成功！檔案已可下載。';
+                    downloadLink.classList.remove('hidden');
+                    downloadLink.textContent = '點此重新下載 animation.json';
+                    downloadLink.onclick = () => downloadJson(lottieJson, 'animation.json');
+
+                } catch (error) {
+                    console.error("生成Lottie時出錯:", error);
+                    updateStatus(`發生錯誤: ${error.message}`, true, true);
+                } finally {
+                    // --- 8. 恢復按鈕狀態 ---
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = '重新生成並預覽';
+                }
+            }, 100);
+        }
+        
+        /**
+         * 將JSON物件轉換為檔案並觸發下載
+         * @param {object} data - 要轉換的JS物件
+         * @param {string} filename - 下載的檔案名稱
+         */
+        function downloadJson(data, filename) {
+            const jsonStr = JSON.stringify(data); // 發布時可移除美化以縮小檔案
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            
+            a.remove();
+            URL.revokeObjectURL(url); // 立即釋放記憶體
+        }
+
+    });
+    </script>
+
+</body>
+</html>
